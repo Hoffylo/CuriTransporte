@@ -1,0 +1,81 @@
+# 📋 Comandos rápidos para PowerShell
+# Copiar y pegar directamente en PowerShell
+
+# ========== OPCIÓN 1: INYECTAR UN CLUSTER (1 usuario) ==========
+# Ejecutar:
+.\inject-cluster.ps1
+
+# Con parámetros personalizados:
+.\inject-cluster.ps1 -NumeroUbicaciones 5 -Delay 2 -RutaID 3
+
+
+# ========== OPCIÓN 2: INYECTAR MÚLTIPLES USUARIOS (consolidación) ==========
+# Ejecutar:
+.\inject-multiuser-cluster.ps1
+
+# Con parámetros personalizados:
+.\inject-multiuser-cluster.ps1 -NumeroUsuarios 3 -DelayEntrePuntos 1 -DelayEntreUsuarios 2
+
+
+# ========== OPCIÓN 3: COMANDOS MANUALES (sin script) ==========
+
+# 1. Generar UUID para usuario anónimo
+$uuid = [guid]::NewGuid().ToString()
+$usuario_id = "anon_$uuid"
+
+# 2. Crear un usuario y enviarlo a ubicación única
+$body = @{
+    usuario_id = $usuario_id
+    es_registrado = $false
+    latitud = -34.9792
+    longitud = -71.2409
+    velocidad = 18.5
+    precision_metros = 8
+    direccion = 45
+    id_ruta = 3
+} | ConvertTo-Json
+
+# 3. POST a API de telemetría
+$response = Invoke-WebRequest -Uri "http://localhost:3001/api/v1/telemetria/registrar" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $body
+
+# 4. Ver respuesta
+$response.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+
+
+# ========== OPCIÓN 4: VERIFICAR CLUSTERS ==========
+
+# Ver todos los clusters activos
+Invoke-WebRequest -Uri "http://localhost:3001/api/v1/cluster/buses-activos" -Method GET | 
+    Select-Object -ExpandProperty Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+
+# Ver clusters cercanos a una ubicación
+Invoke-WebRequest -Uri "http://localhost:3001/api/v1/cluster/cercanos?latitud=-34.9792&longitud=-71.2409&radio=500" -Method GET |
+    Select-Object -ExpandProperty Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+
+
+# ========== OPCIÓN 5: LIMPIAR CLUSTERS ==========
+
+# Limpiar clusters inactivos
+$cleanResponse = Invoke-WebRequest -Uri "http://localhost:3001/api/v1/telemetria/limpiar-clusters" `
+    -Method POST `
+    -ContentType "application/json"
+
+$cleanResponse.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
+
+
+# ========== OPCIONES 6: DETENER TELEMETRÍA DE UN USUARIO ==========
+
+$stopBody = @{
+    usuario_id = $usuario_id
+    es_registrado = $false
+} | ConvertTo-Json
+
+$stopResponse = Invoke-WebRequest -Uri "http://localhost:3001/api/v1/telemetria/detener" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $stopBody
+
+$stopResponse.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
